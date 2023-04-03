@@ -36,6 +36,9 @@ void setup()
 
   //Give the calcIrms time to settle to base
   while(Irms > 5){
+    delay(5000);
+    Serial.print("Calibrating:");
+    Serial.print(" ");
     Serial.println(Irms);
     delay(100);
     Irms = emon1.calcIrms(1480);
@@ -47,7 +50,11 @@ void loop()
   if(Irms > 10.0) {
     Serial.println("Bean! Beans! Beans!");
     MP3player.playMP3("beans.mp3");
+    Serial.println("Sleeping for 6 minutes.");
     delay(360000);
   }
   delay(1000);
+  Serial.print("Idle:");
+  Serial.print(" ");
+  Serial.println(Irms);
 }
