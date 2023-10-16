@@ -5,6 +5,11 @@
 const int pin_microSD_CS = 9; //Default pin for the SparkFun MP3 Shield
 SdFat sd;
 
+//Set the grinder trigger to false at startup
+unsigned long previousMillis = 0; // Variable to store the start time
+bool grinderUsed = false; // Initialize the boolean variable to false
+const unsigned long interval = 300000; // Define the interval (5 minutes in milliseconds)
+
 // MP3 Shield Interface
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 #include "vs1053_SdFat.h" //http://librarymanager/All#vs1053_sdFat by mpflaga
@@ -40,12 +45,12 @@ void setup()
   kettleSense.current(KETTLE_PIN, 111.1);             // Current: input pin, calibration.
   kettleIrms = kettleSense.calcIrms(1480);
 
-  grinderSense.current(KETTLE_PIN, 111.1);             // Current: input pin, calibration.
+  grinderSense.current(GRINDER_PIN, 111.1);             // Current: input pin, calibration.
   grinderIrms = grinderSense.calcIrms(1480);
 
   //Give the calcIrms time to settle to base
   while(kettleIrms > 5 || grinderIrms > 5){
-    delay(5000);
+    delay(1000);
     Serial.print("Calibrating Kettle:");
     Serial.print(" ");
     Serial.println(kettleIrms);
@@ -61,18 +66,53 @@ void setup()
 }
 void loop()
 {
+  //Used to measure the interval between Grinder trigger and timeout reset
+  unsigned long currentMillis = millis();
+
   kettleIrms = kettleSense.calcIrms(1480);
-  if(kettleIrms > 10.0) {
-    Serial.println("Bean! Beans! Beans!");
-    MP3player.playMP3("beans.mp3");
-    Serial.println("Sleeping for 6 minutes.");
-    delay(360000);
+  grinderIrms = grinderSense.calcIrms(1480);
+
+  //Set the grinder flag to true when it's turned on, not to be triggered again until a reset has occured (via execution or timeout)
+  if(grinderIrms > 0.8 && !grinderUsed) {
+    grinderUsed = true;
   }
-  delay(1000);
+
+  //Reset the grinder if it times out after INTERVAL
+  if (currentMillis - previousMillis >= interval && grinderUsed == true) {
+    previousMillis = currentMillis;
+    grinderUsed = false;
+  }
+
+  //When the kettle is triggered run this function
+  if(kettleIrms > 10.0) {
+    playMusic();
+  }
+
+  //Console Debug
+  delay(500);
   Serial.print("Kettle Idle:");
   Serial.print(" ");
   Serial.println(kettleIrms);
   Serial.print("Grinder Idle:");
   Serial.print(" ");
   Serial.println(grinderIrms);
+  Serial.print("Grinder State:");
+  Serial.print(" ");
+  Serial.println(grinderUsed);
+}
+
+void playMusic() {
+    //Tea or Coffee?
+    if(grinderUsed) {
+      Serial.println("Making Coffee! Bean! Beans! Beans!");
+      MP3player.playMP3("beans.mp3");
+    }
+    else {
+      Serial.println("It's Tea Time!");
+      MP3player.playMP3("danube.mp3");
+    }
+    Serial.println("Sleeping for 6 minutes.");
+    delay(360000);
+    //Reset grinder state
+    grinderUsed = false;
 }
